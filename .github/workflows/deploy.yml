@@ -27,30 +27,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
-          # 去除可能的空白字符
           CLOUDFLARE_API_TOKEN="$(echo "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]')"
           CLOUDFLARE_ACCOUNT_ID="$(echo "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')"
 
-          # 诊断输出
-          echo "=== 诊断 ==="
-          echo "CF_API_TOKEN 长度: ${#CLOUDFLARE_API_TOKEN}"
+          echo "CF_API_TOKEN length: ${#CLOUDFLARE_API_TOKEN}"
           echo "CF_ACCOUNT_ID: $CLOUDFLARE_ACCOUNT_ID"
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::error::CF_API_TOKEN 为空！GitHub Secret 名称必须是 CF_API_TOKEN"
-            exit 1
-          fi
-          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::CF_ACCOUNT_ID 为空！GitHub Secret 名称必须是 CF_ACCOUNT_ID"
-            exit 1
-          fi
-
-          # 验证 Token 有效性
-          VERIFY=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "https://api.cloudflare.com/client/v4/user/tokens/verify")
-          echo "Token 验证: $VERIFY"
-
-          API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database"
-          AUTH="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
 
           # 1. 优先使用 D1_DATABASE_ID secret
           DB_ID="$D1_DATABASE_ID"
@@ -64,52 +45,12 @@ jobs:
           NEED_COMMIT="no"
 
           if [ -z "$DB_ID" ]; then
-            # 3. 用 Cloudflare API 查询已有数据库
-            echo "Querying existing D1 databases ..."
-            curl -s -H "$AUTH" "$API" -o /tmp/d1_list.json
-            python3 -c "
-              import json
-              with open('/tmp/d1_list.json') as f:
-                  data = json.load(f)
-              if not data.get('success'):
-                  print(f\"API error: {data.get('errors')}\")
-              else:
-                  dbs = data.get('result', [])
-                  print(f'Found {len(dbs)} databases:')
-                  for d in dbs:
-                      print(f\"  - {d.get('name')} : {d.get('uuid')}\")
-                  match = [d for d in dbs if d.get('name') == '9router-lite-db']
-                  if match:
-                      with open('/tmp/d1_id.txt', 'w') as f:
-                          f.write(match[0]['uuid'])
-            " 2>&1
-            DB_ID=$(cat /tmp/d1_id.txt 2>/dev/null || echo "")
-
-            if [ -n "$DB_ID" ]; then
-              echo "Found existing D1: $DB_ID"
-            else
-              # 4. 不存在则创建
-              echo "Creating D1 database ..."
-              curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
-                "$API" -d '{"name":"9router-lite-db"}' -o /tmp/d1_create.json
-              python3 -c "
-                import json
-                with open('/tmp/d1_create.json') as f:
-                    data = json.load(f)
-                print(json.dumps(data, indent=2)[:500])
-                if data.get('success'):
-                    with open('/tmp/d1_id.txt', 'w') as f:
-                        f.write(data.get('result', {}).get('uuid', ''))
-              " 2>&1
-              DB_ID=$(cat /tmp/d1_id.txt 2>/dev/null || echo "")
-
-              if [ -z "$DB_ID" ]; then
-                echo "::error::D1 创建失败。请检查 CF_API_TOKEN 的 D1 编辑权限"
-                exit 1
-              fi
-              echo "Created D1: $DB_ID"
+            # 3. 用 Python 脚本查询或创建 D1
+            DB_ID=$(python3 scripts/d1_setup.py 2>&1 | tail -1)
+            if [ -z "$DB_ID" ]; then
+              echo "::error::D1 setup failed"
+              exit 1
             fi
-
             sed -i "s/database_id = .*/database_id = \"$DB_ID\"/" wrangler.toml
             NEED_COMMIT="yes"
           fi
