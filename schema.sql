@@ -49,3 +49,13 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at      TEXT NOT NULL,
   FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS app_logs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  level      TEXT NOT NULL DEFAULT 'info',
+  msg        TEXT NOT NULL,
+  data       TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_logs_time ON app_logs(created_at DESC);
