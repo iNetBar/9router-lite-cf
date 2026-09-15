@@ -1,0 +1,15 @@
+{
+  "name": "9router-lite-cf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "9router-lite Cloudflare Pages + D1 版本",
+  "scripts": {
+    "dev": "wrangler pages dev . --d1 DB=9router-lite-db",
+    "deploy": "wrangler pages deploy .",
+    "init-db": "wrangler d1 execute 9router-lite-db --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}
