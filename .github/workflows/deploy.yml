@@ -27,6 +27,28 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
+          # 去除可能的空白字符
+          CLOUDFLARE_API_TOKEN="$(echo "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]')"
+          CLOUDFLARE_ACCOUNT_ID="$(echo "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')"
+
+          # 诊断输出
+          echo "=== 诊断 ==="
+          echo "CF_API_TOKEN 长度: ${#CLOUDFLARE_API_TOKEN}"
+          echo "CF_ACCOUNT_ID: $CLOUDFLARE_ACCOUNT_ID"
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CF_API_TOKEN 为空！GitHub Secret 名称必须是 CF_API_TOKEN"
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CF_ACCOUNT_ID 为空！GitHub Secret 名称必须是 CF_ACCOUNT_ID"
+            exit 1
+          fi
+
+          # 验证 Token 有效性
+          VERIFY=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/user/tokens/verify")
+          echo "Token 验证: $VERIFY"
+
           API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database"
           AUTH="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
 
