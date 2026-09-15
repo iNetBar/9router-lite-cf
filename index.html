@@ -2339,6 +2339,7 @@
                     } else {
                         document.getElementById('adminSetupActions').style.display = 'flex';
                     }
+                    loadModels();
                     return;
                 }
                 // 需要登录
@@ -2363,6 +2364,7 @@
             } catch (err) {
                 document.getElementById('adminBar').style.display = 'none';
                 document.body.classList.add('auth-ok');
+                loadModels();
             }
         }
 
@@ -3796,7 +3798,6 @@
         checkAuthStatus();
         loadStatus();
         loadProviders();
-        loadModels();
         loadCustomProviders();
         loadStats();
         loadConversations();

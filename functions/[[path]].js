@@ -2,6 +2,7 @@
 // 拦截所有请求，API 路径交给 handleApi，其余交给静态资源服务
 
 import { handleApi } from '../lib/api.js';
+import { createDb } from '../lib/db.js';
 
 const API_PREFIXES = ['/api/', '/v1/', '/health'];
 
@@ -15,6 +16,7 @@ export async function onRequest(context) {
     try {
       return await handleApi(request, env, context.ctx);
     } catch (err) {
+      try { await createDb(env).addLog('error', `${path}: ${err.message}`); } catch (_) {}
       return Response.json(
         { error: { message: err.message || 'Internal error', type: 'server_error' } },
         { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
