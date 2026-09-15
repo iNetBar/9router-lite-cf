@@ -2579,6 +2579,11 @@
                 const headers = {};
                 if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
                 const res = await fetch(`${API_BASE}/v1/models`, { headers });
+                if (!res.ok) {
+                    document.getElementById('modelList').innerHTML =
+                        '<p style="color: #888;">登录后查看模型</p>';
+                    return;
+                }
                 const data = await res.json();
                 
                 const list = document.getElementById('modelList');
