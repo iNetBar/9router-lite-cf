@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 # 9router-lite Cloudflare Pages 一键部署脚本
-# 用法: ./deploy.sh
-# 首次运行自动完成: 创建 D1 → 初始化表 → 生成加密密钥 → 部署
-# 后续运行: 同步 index.html → 部署
+#
+# 用法:
+#   ./deploy.sh init   — 仅初始化（创建 D1 + 建表 + 生成密钥），不部署
+#   ./deploy.sh        — 完整部署（初始化 + wrangler pages deploy）
+#   ./deploy.sh sync   — 仅同步 index.html（从上级目录复制）
+#
+# GitHub 连接部署流程:
+#   1. clone 本仓库
+#   2. npx wrangler login
+#   3. ./deploy.sh init
+#   4. git add wrangler.toml && git commit -m "init" && git push
+#   5. Cloudflare Dashboard → Pages → Connect to Git → 选本仓库
+#      Framework preset: None / Build command: (留空) / Output dir: .
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
+MODE="${1:-deploy}"
 DB_NAME="9router-lite-db"
 TOML="wrangler.toml"
 ROOT_DIR="$(cd .. && pwd)"
@@ -15,9 +26,19 @@ echo "🚀 9router-lite Cloudflare 部署"
 echo "=============================="
 
 # ---- 1. 同步 index.html ----
+if [ "$MODE" = "sync" ]; then
+  cp "$ROOT_DIR/index.html" ./index.html
+  echo "✓ index.html 已同步"
+  exit 0
+fi
+
 echo "📋 [1/5] 同步 index.html ..."
-cp "$ROOT_DIR/index.html" ./index.html
-echo "   ✓ 已同步"
+if [ -f "$ROOT_DIR/index.html" ]; then
+  cp "$ROOT_DIR/index.html" ./index.html
+  echo "   ✓ 已同步"
+else
+  echo "   ⚠ 未找到上级 index.html，跳过（使用当前版本）"
+fi
 
 # ---- 2. 检查/创建 D1 数据库 ----
 echo "🗄️  [2/5] 检查 D1 数据库 ..."
@@ -80,7 +101,23 @@ else
   echo "   ✓ 密钥已配置"
 fi
 
-# ---- 5. 部署 ----
+# ---- 5. 部署或完成 ----
+if [ "$MODE" = "init" ]; then
+  echo ""
+  echo "=============================="
+  echo "✅ 初始化完成！"
+  echo ""
+  echo "下一步（GitHub 连接部署）:"
+  echo "  1. git add wrangler.toml && git commit -m 'init D1' && git push"
+  echo "  2. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git"
+  echo "  3. 选择本仓库，设置:"
+  echo "     - Framework preset: None"
+  echo "     - Build command: (留空)"
+  echo "     - Build output directory: ."
+  echo "  4. 部署后访问 Pages URL 设置管理密码和提供商 API Key"
+  exit 0
+fi
+
 echo "📤 [5/5] 部署到 Cloudflare Pages ..."
 npx wrangler pages deploy .
 
