@@ -83,20 +83,28 @@ echo "🔐 [4/5] 检查加密密钥 ..."
 KEY_EXISTS=$(grep -oP 'ENCRYPTION_KEY\s*=\s*"\K[^"]+' "$TOML" 2>/dev/null || echo "")
 
 if [ -z "$KEY_EXISTS" ]; then
-  echo "   首次部署，生成 32 字节加密密钥 ..."
   NEW_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-
-  # 在 [vars] 下添加 ENCRYPTION_KEY
-  if grep -q '\[vars\]' "$TOML"; then
-    sed -i.bak "/\[vars\]/a\\ENCRYPTION_KEY = \"$NEW_KEY\"" "$TOML" && rm -f "$TOML.bak"
+  echo "   ✓ 已生成加密密钥（见下方，请妥善保存）"
+  echo ""
+  echo "   ┌──────────────────────────────────────────────────────────────┐"
+  echo "   │ ENCRYPTION_KEY = $NEW_KEY │"
+  echo "   └──────────────────────────────────────────────────────────────┘"
+  echo ""
+  if [ "$MODE" = "init" ]; then
+    echo "   📌 在 Cloudflare Dashboard 设置此环境变量:"
+    echo "      Pages 项目 → Settings → Environment variables → Add"
+    echo "      Name: ENCRYPTION_KEY  Value: 上方密钥"
   else
-    echo "" >> "$TOML"
-    echo "[vars]" >> "$TOML"
-    echo "ENCRYPTION_KEY = \"$NEW_KEY\"" >> "$TOML"
+    # wrangler 直接部署模式：写入 wrangler.toml [vars]
+    if grep -q '\[vars\]' "$TOML"; then
+      sed -i.bak "/\[vars\]/a\\ENCRYPTION_KEY = \"$NEW_KEY\"" "$TOML" && rm -f "$TOML.bak"
+    else
+      echo "" >> "$TOML"
+      echo "[vars]" >> "$TOML"
+      echo "ENCRYPTION_KEY = \"$NEW_KEY\"" >> "$TOML"
+    fi
+    echo "   ✓ 已写入 wrangler.toml [vars]"
   fi
-  echo "   ✓ 密钥已生成并写入 wrangler.toml"
-  echo "   ⚠️  密钥已写入配置文件，请勿提交到公开仓库"
-  echo "   （生产环境建议改用: npx wrangler pages secret put ENCRYPTION_KEY）"
 else
   echo "   ✓ 密钥已配置"
 fi
