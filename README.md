@@ -2,44 +2,49 @@
 
 全球 CDN 加速、免费额度充足、无需服务器、自动 HTTPS。
 
-## 一键部署
+## 自动部署（GitHub Actions）
+
+推送到 main 分支即自动部署到 Cloudflare Pages。
+
+### 首次配置
+
+**1. 设置 GitHub Secrets**（仓库 → Settings → Secrets and variables → Actions）
+
+| Secret 名称 | 说明 | 获取方式 |
+|---|---|---|
+| `CF_API_TOKEN` | Cloudflare API Token | Dashboard → My Profile → API Tokens → Create Token，权限选 "Edit Cloudflare Workers" 模板（含 Pages + D1） |
+| `CF_ACCOUNT_ID` | Cloudflare Account ID | Dashboard 右侧栏 → Account ID |
+| `ENCRYPTION_KEY` | 加密密钥 | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` 生成 |
+
+**2. 推送代码**
+
+```bash
+git push origin main
+```
+
+GitHub Actions 自动完成：创建 D1 → 初始化表 → 部署到 Pages。首次约 1-2 分钟。
+
+**3. 查看部署状态**
+
+仓库 → Actions 标签页查看运行日志。部署成功后输出 Pages URL。
+
+### 后续更新
+
+修改代码 → `git push` → 自动部署。
+
+## 手动部署（替代方案）
 
 ```bash
 cd cloudflare
-./deploy.sh
-```
-
-脚本自动完成：同步 index.html → 创建 D1 数据库 → 初始化表 → 生成加密密钥 → 部署。
-
-首次运行前需登录 Wrangler：`npx wrangler login`
-
-## 前置条件
-
-- [Cloudflare 账号](https://cloudflare.com)（免费）
-- Node.js + Wrangler（`npx wrangler login` 登录）
-
-## 后续更新
-
-```bash
-./deploy.sh
+./deploy.sh          # 完整部署
+./deploy.sh init     # 仅初始化（创建 D1 + 建表 + 打印密钥）
 ```
 
 ## 可选操作
 
-**绑定自定义域名**：Cloudflare Dashboard → Pages → 自定义域名
-
-**设置提供商 API Key**：访问部署 URL → 管理后台 → 提供商设置
-
-**迁移加密密钥到 secret**（更安全，不进仓库）：
-```bash
-npx wrangler pages secret put ENCRYPTION_KEY
-# 然后从 wrangler.toml 的 [vars] 中删除 ENCRYPTION_KEY 行
-```
-
-**本地开发**：
-```bash
-npx wrangler pages dev . --d1 DB=9router-lite-db
-```
+- **绑定自定义域名**：Cloudflare Dashboard → Pages → 自定义域名
+- **设置提供商 API Key**：访问部署 URL → 管理后台 → 提供商设置
+- **本地开发**：`npx wrangler pages dev . --d1 DB=9router-lite-db`
 
 ## 限制
 
@@ -50,15 +55,15 @@ npx wrangler pages dev . --d1 DB=9router-lite-db
 ## 文件结构
 
 ```
-cloudflare/
-├── deploy.sh               # 一键部署脚本
-├── index.html              # Web UI（部署时自动从根目录同步）
-├── functions/[[path]].js   # Pages Functions 入口
+├── .github/workflows/deploy.yml  # GitHub Actions 自动部署
+├── deploy.sh                     # 手动部署脚本
+├── index.html                    # Web UI
+├── functions/[[path]].js         # Pages Functions 入口
 ├── lib/
-│   ├── api.js              # API 逻辑
-│   ├── db.js               # D1 适配层
-│   └── crypto.js           # Web Crypto 加密
-├── schema.sql              # D1 建表 SQL
-├── wrangler.toml           # Cloudflare 配置
+│   ├── api.js                    # API 逻辑
+│   ├── db.js                     # D1 适配层
+│   └── crypto.js                 # Web Crypto 加密
+├── schema.sql                    # D1 建表 SQL
+├── wrangler.toml                 # Cloudflare 配置
 └── package.json
 ```
